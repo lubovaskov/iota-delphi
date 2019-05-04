@@ -74,7 +74,7 @@ begin
     .Protocol('https')
     .Host('trinity.iota-tangle.io')
     .Port(14265)
-	.Timeout(5000)
+    .Timeout(5000)
     .Build;
 
   // The seed must be truly random & 81-trytes long.
