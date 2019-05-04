@@ -19,16 +19,16 @@ type
     function GetCommand: String; override;
     function BuildRequestBody(JsonBuilder: TJSONCollectionBuilder.TPairs): TJSONCollectionBuilder.TPairs; override;
   public
-    constructor Create(ARESTClient: TCustomRESTClient; ATrunkTransaction: String; ABranchTransaction: String; AMinWeightMagnitude: Integer; ATrytes: TStrings); reintroduce; virtual;
+    constructor Create(ARESTClient: TCustomRESTClient; ATimeout: Integer; ATrunkTransaction: String; ABranchTransaction: String; AMinWeightMagnitude: Integer; ATrytes: TStrings); reintroduce; virtual;
   end;
 
 implementation
 
 { TAttachToTangleRequest }
 
-constructor TAttachToTangleRequest.Create(ARESTClient: TCustomRESTClient; ATrunkTransaction, ABranchTransaction: String; AMinWeightMagnitude: Integer; ATrytes: TStrings);
+constructor TAttachToTangleRequest.Create(ARESTClient: TCustomRESTClient; ATimeout: Integer; ATrunkTransaction, ABranchTransaction: String; AMinWeightMagnitude: Integer; ATrytes: TStrings);
 begin
-  inherited Create(ARESTClient);
+  inherited Create(ARESTClient, ATimeout);
   FTrunkTransaction := ATrunkTransaction;
   FBranchTransaction := ABranchTransaction;
   FMinWeightMagnitude := AMinWeightMagnitude;

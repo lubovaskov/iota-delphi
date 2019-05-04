@@ -80,6 +80,7 @@ type
     function Protocol(AProtocol: String): IIotaAPIBuilder;
     function Host(AHost: String): IIotaAPIBuilder;
     function Port(APort: Integer): IIotaAPIBuilder;
+    function Timeout(ATimeout: Integer): IIotaAPIBuilder;
     function LocalPow(ALocalPow: IIotaLocalPow): IIotaAPIBuilder;
     function WithCustomCurl(ACurl: ICurl): IIotaAPIBuilder;
     function Build: IIotaAPI;
@@ -113,6 +114,7 @@ uses
 constructor TIotaAPIBuilder.Create;
 begin
   FCustomCurl := TSpongeFactory.Create(TSpongeFactory.Mode.KERL);
+  FTimeout := 5000;
 end;
 
 function TIotaAPIBuilder.Protocol(AProtocol: String): IIotaAPIBuilder;
@@ -128,6 +130,11 @@ end;
 function TIotaAPIBuilder.Port(APort: Integer): IIotaAPIBuilder;
 begin
   Result := inherited Port(APort) as IIotaAPIBuilder;
+end;
+
+function TIotaAPIBuilder.Timeout(ATimeout: Integer): IIotaAPIBuilder;
+begin
+  Result := inherited Timeout(ATimeout) as IIotaAPIBuilder;
 end;
 
 function TIotaAPIBuilder.LocalPow(ALocalPow: IIotaLocalPow): IIotaAPIBuilder;
@@ -195,7 +202,8 @@ var
   AllAddresses: TStringList;
   i: Integer;
   ANumUnspentFound: Integer;
-  ANewAddress: TStringList;
+  ANewAddressList: TStringList;
+  ANewAddress: String;
   AResponse: TFindTransactionsResponse;
 begin
   if not TInputValidator.IsValidSeed(ASeed) then
@@ -208,26 +216,32 @@ begin
     raise Exception.Create(INVALID_INPUT_ERROR);
 
   AllAddresses := TStringList.Create;
-  ANewAddress := TStringList.Create;
+  ANewAddressList := TStringList.Create;
   try
     ANumUnspentFound := 0;
     i := AIndex;
     while ANumUnspentFound < AAmount do
       begin
-        ANewAddress.Text := TIotaAPIUtils.NewAddress(ASeed, ASecurity, i, AChecksum, FCustomCurl.Clone);
-        AResponse := FindTransactionsByAddresses(ANewAddress);
+        ANewAddress := TIotaAPIUtils.NewAddress(ASeed, ASecurity, i, AChecksum, FCustomCurl.Clone);
+
+        if AChecksum then
+          ANewAddressList.Text := ANewAddress
+        else
+          ANewAddressList.Text := TChecksum.AddChecksum(ANewAddress);
+
+        AResponse := FindTransactionsByAddresses(ANewAddressList);
         try
           if AResponse.HashesCount = 0 then
             begin
               //Unspent address, if we ask for 0, we dont need to add it
               if AAmount <> 0 then
-                AllAddresses.AddStrings(ANewAddress);
+                AllAddresses.Add(ANewAddress);
               Inc(ANumUnspentFound);
             end
           else
           if AAddSpendAddresses then
             //Spend address, were interested anyways
-            AllAddresses.AddStrings(ANewAddress);
+            AllAddresses.Add(ANewAddress);
         finally
           AResponse.Free;
         end;
@@ -237,7 +251,7 @@ begin
 
     Result := TGetNewAddressesResponse.Create(AllAddresses.ToStringArray);
   finally
-    ANewAddress.Free;
+    ANewAddressList.Free;
     AllAddresses.Free;
   end;
 end;
@@ -276,7 +290,7 @@ begin
   if not TInputValidator.IsValidSecurityLevel(ASecurity) then
     raise Exception.Create(INVALID_SECURITY_LEVEL_INPUT_ERROR);
 
-  AGnr := GetNewAddress(ASeed, ASecurity, AStart, False, AEnd, True);
+  AGnr := GetNewAddress(ASeed, ASecurity, AStart, True, AEnd, True);
   if Assigned(AGnr) and (AGnr.AddressesCount > 0) then
     begin
       AAddressesList := AGnr.AddressesList;
@@ -474,35 +488,25 @@ end;
 
 function TIotaAPI.FindTransactionObjectsByAddresses(AAddresses: TStrings): TList<ITransaction>;
 var
-  AAddressesWithoutChecksum: TStringList;
-  AAddress: String;
   AFtr: TFindTransactionsResponse;
   AHashesList: TStringList;
 begin
-  AAddressesWithoutChecksum := TStringList.Create;
+  AFtr := FindTransactionsByAddresses(AAddresses);
   try
-    for AAddress in AAddresses do
-      AAddressesWithoutChecksum.Add(TChecksum.RemoveChecksum(AAddress));
-
-    AFtr := FindTransactionsByAddresses(AAddressesWithoutChecksum);
-    try
-      if (not Assigned(AFtr)) or (AFtr.HashesCount = 0) then
-        Result := TList<ITransaction>.Create
-      else
-        // get the transaction objects of the transactions
-        begin
-          AHashesList := AFtr.HashesList;
-          try
-            Result := FindTransactionsObjectsByHashes(AHashesList);
-          finally
-            AHashesList.Free;
-          end;
+    if (not Assigned(AFtr)) or (AFtr.HashesCount = 0) then
+      Result := TList<ITransaction>.Create
+    else
+      // get the transaction objects of the transactions
+      begin
+        AHashesList := AFtr.HashesList;
+        try
+          Result := FindTransactionsObjectsByHashes(AHashesList);
+        finally
+          AHashesList.Free;
         end;
-    finally
-      AFtr.Free;
-    end;
+      end;
   finally
-    AAddressesWithoutChecksum.Free;
+    AFtr.Free;
   end;
 end;
 
@@ -611,9 +615,15 @@ begin
   if not TInputValidator.IsValidSecurityLevel(ASecurity) then
     raise Exception.Create(INVALID_SECURITY_LEVEL_INPUT_ERROR);
 
+  if (ARemainder <> '') and (not TInputValidator.CheckAddress(ARemainder)) then
+    raise Exception.Create(INVALID_ADDRESSES_INPUT_ERROR);
+
   // Input validation of transfers object
   if not TInputValidator.IsTransfersCollectionValid(ATransfers) then
     raise Exception.Create(INVALID_TRANSFERS_INPUT_ERROR);
+
+  if Assigned(AInputs) and (not TInputValidator.AreValidInputsList(AInputs)) then
+    raise Exception.Create(INVALID_ADDRESSES_INPUT_ERROR);
 
   Result := nil;
 
@@ -628,9 +638,8 @@ begin
     //  and prepare the signatureFragments, message and tag
     for ATransfer in ATransfers do
       begin
-        // remove the checksum of the address if provided
-        if TChecksum.IsValidChecksum(ATransfer.Address) then
-          ATransfer.Address := TChecksum.RemoveChecksum(ATransfer.Address);
+        // remove the checksum of the address
+        ATransfer.Address := TChecksum.RemoveChecksum(ATransfer.Address);
 
         ASignatureMessageLength := 1;
 
@@ -684,6 +693,10 @@ begin
     // Get inputs if we are sending tokens
     if ATotalValue <> 0 then
       begin
+        for ATransfer in ATransfers do
+          if not TInputValidator.HasTrailingZeroTrit(ATransfer.Address) then
+            raise Exception.Create(INVALID_ADDRESSES_INPUT_ERROR);
+
         //  Case 1: user provided inputs
         //  Validate the inputs by calling getBalances
         if Assigned(AInputs) and (AInputs.Count > 0) then
@@ -816,7 +829,7 @@ begin
       try
         for i := AStart to AEnd - 1 do
           begin
-            AAddress := TIotaAPIUtils.NewAddress(ASeed, ASecurity, i, False, FCustomCurl.Clone);
+            AAddress := TIotaAPIUtils.NewAddress(ASeed, ASecurity, i, True, FCustomCurl.Clone);
             AAllAddresses.Add(AAddress);
           end;
         Result := GetBalanceAndFormat(AAllAddresses, ATips, AThreshold, AStart, ASecurity);
@@ -831,7 +844,7 @@ begin
     //  Calls getNewAddress and deterministically generates and returns all addresses
     //  We then do getBalance, format the output and return it
     begin
-      ARes := GenerateNewAddresses(ASeed, ASecurity, False, AStart, 0, True);
+      ARes := GenerateNewAddresses(ASeed, ASecurity, True, AStart, AThreshold, True);
       AResAddresses := ARes.AddressesList;
       try
         Result := GetBalanceAndFormat(AResAddresses, ATips, AThreshold, AStart, ASecurity);
@@ -942,36 +955,13 @@ end;
 
 function TIotaAPI.CheckWereAddressSpentFrom(AAddresses: TStrings): TArray<Boolean>;
 var
-  ARawAddresses: TStringList;
-  AAddress: String;
-  ARawAddress: String;
   ARes: TWereAddressesSpentFromResponse;
 begin
-  ARawAddresses := TStringList.Create;
+  ARes := WereAddressesSpentFrom(AAddresses);
   try
-    for AAddress in AAddresses do
-      begin
-        ARawAddress := '';
-        try
-          if TChecksum.IsAddressWithChecksum(AAddress) then
-            ARawAddress := TChecksum.RemoveChecksum(AAddress);
-        except
-        end;
-
-        if ARawAddress = '' then
-          ARawAddresses.Add(AAddress)
-        else
-          ARawAddresses.Add(ARawAddress);
-      end;
-
-    ARes := WereAddressesSpentFrom(ARawAddresses);
-    try
-      Result := ARes.StatesArray;
-    finally
-      ARes.Free;
-    end;
+    Result := ARes.StatesArray;
   finally
-    ARawAddresses.Free;
+    ARes.Free;
   end;
 end;
 
@@ -1240,9 +1230,8 @@ begin
     //  and prepare the signatureFragments, message and tag
     for ATransfer in ATransfers do
       begin
-        // remove the checksum of the address if provided
-        if TChecksum.IsValidChecksum(ATransfer.Address) then
-          ATransfer.Address := TChecksum.RemoveChecksum(ATransfer.Address);
+        // remove the checksum of the address
+        ATransfer.Address := TChecksum.RemoveChecksum(ATransfer.Address);
 
         ASignatureMessageLength := 1;
 
@@ -1292,6 +1281,10 @@ begin
     // Get inputs if we are sending tokens
     if ATotalValue <> 0 then
       begin
+        for ATransfer in ATransfers do
+          if not TInputValidator.HasTrailingZeroTrit(ATransfer.Address) then
+            raise Exception.Create(INVALID_ADDRESSES_INPUT_ERROR);
+
         AInputAddressList := TStringList.Create;
         try
           AInputAddressList.Add(AInputAddress);
@@ -1331,7 +1324,7 @@ begin
         if ATotalBalance > 0 then
           // Add input as bundle entry
           // Only a single entry, signatures will be added later
-          ABundle.AddEntry(ASecuritySum, AInputAddress, -ATotalBalance, ATag, ATimestamp);
+          ABundle.AddEntry(ASecuritySum, TChecksum.RemoveChecksum(AInputAddress), -ATotalBalance, ATag, ATimestamp);
 
         // Return not enough balance error
         if ATotalValue > ATotalBalance then
@@ -1388,7 +1381,7 @@ begin
           finally
             Free;
           end;
-        AAddresses.Add(ATransaction.Address);
+        AAddresses.Add(TChecksum.AddChecksum(ATransaction.Address));
         AInputTransactions.Add(ATransaction);
       end;
 
@@ -1400,18 +1393,22 @@ begin
           try
             ATransactions := FindTransactionsObjectsByHashes(AHashes);
             try
-              AGna := GenerateNewAddresses(ASeed, ASecurity, False, 0, 0, False);
+              AGna := GenerateNewAddresses(ASeed, ASecurity, True, 0, 0, False);
               AGnaAddresses := AGna.AddressesList;
               try
                 AGbr := GeTInputs(ASeed, ASecurity, 0, 0, 0, nil);
                 try
                   for AInput in AGbr.InputsArray do
-                    AInputAddresses.Add(AInput.Address);
+                    AInputAddresses.Add(TChecksum.AddChecksum(AInput.Address));
 
                   //check if send to input
                   for ATransaction in AInputTransactions do
-                    if (ATransaction.Value > 0) and (AInputAddresses.IndexOf(ATransaction.Address) >= 0) then
-                      raise Exception.Create(SEND_TO_INPUTS_ERROR);
+                    if ATransaction.Value > 0 then
+                      if AInputAddresses.IndexOf(ATransaction.Address) >= 0 then
+                        raise Exception.Create(SEND_TO_INPUTS_ERROR)
+                      else
+                      if not TInputValidator.HasTrailingZeroTrit(ATransaction.Address) then
+                        raise Exception.Create(INVALID_ADDRESSES_INPUT_ERROR);
 
                   for ATransaction in ATransactions do
                     begin
@@ -1457,8 +1454,19 @@ var
   ARemainder: Int64;
   ARes: TGetNewAddressesResponse;
 begin
-  //TODO: replace 2187 with {@value Constants#MESSAGE_LENGTH}.
-  // https://bugs.eclipse.org/bugs/show_bug.cgi?id=490247
+  // validate seed
+  if not TInputValidator.IsValidSeed(ASeed) then
+    raise Exception.Create(INVALID_SEED_INPUT_ERROR);
+
+  if (ARemainderAddress <> '') and (not TInputValidator.CheckAddress(ARemainderAddress)) then
+    raise Exception.Create(INVALID_ADDRESSES_INPUT_ERROR);
+
+  if not TInputValidator.IsValidSecurityLevel(ASecurity) then
+    raise Exception.Create(INVALID_SECURITY_LEVEL_INPUT_ERROR);
+
+  if not TInputValidator.AreValidInputsList(AInputs) then
+    raise Exception.Create(INVALID_INPUT_ERROR);
+
   ATotalTransferValue := ATotalValue;
   for i := 0 to AInputs.Count - 1 do
     begin
@@ -1466,7 +1474,7 @@ begin
       ATimestamp := DateTimeToUnix(TTimeZone.Local.ToUniversalTime(Now));
 
       // Add input as bundle entry
-      ABundle.AddEntry(ASecurity, AInputs[i].Address, -AThisBalance, ATag, ATimestamp);
+      ABundle.AddEntry(ASecurity, TChecksum.RemoveChecksum(AInputs[i].Address), -AThisBalance, ATag, ATimestamp);
       // If there is a remainder value
       // Add extra output to send remaining funds to
       if AThisBalance >= ATotalTransferValue then
@@ -1477,7 +1485,7 @@ begin
           // Use it to send remaining funds to
           if (ARemainder > 0) and (ARemainderAddress <> '') then
             // Remainder bundle entry
-            ABundle.AddEntry(1, ARemainderAddress, ARemainder, ATag, ATimestamp)
+            ABundle.AddEntry(1, TChecksum.RemoveChecksum(ARemainderAddress), ARemainder, ATag, ATimestamp)
           else
           if ARemainder > 0 then
             // Generate a new Address by calling getNewAddress

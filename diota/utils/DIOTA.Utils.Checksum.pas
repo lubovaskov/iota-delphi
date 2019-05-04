@@ -16,7 +16,7 @@ type
      *
      * @param address The address without checksum.
      * @return The address with the appended checksum.
-     * @throws ArgumentException is thrown when the specified address is not an valid address.
+     * @throws ArgumentException is thrown when the specified address is not a valid address, or already has a checksum.
     }
     class function AddChecksum(address: String): String;
     {
@@ -68,7 +68,7 @@ uses
 
 class function TChecksum.AddChecksum(address: String): String;
 begin
-  TInputValidator.CheckAddress(address);
+  TInputValidator.CheckAddressWithoutChecksum(address);
   Result := address + CalculateChecksum(address);
 end;
 
@@ -98,12 +98,12 @@ end;
 
 class function TChecksum.IsAddressWithChecksum(address: String): Boolean;
 begin
-  Result := TInputValidator.CheckAddress(address) and (Length(address) = ADDRESS_LENGTH_WITH_CHECKSUM);
+  Result := TInputValidator.CheckAddress(address);
 end;
 
 class function TChecksum.IsAddressWithoutChecksum(address: String): Boolean;
 begin
-  Result := TInputValidator.CheckAddress(address) and (Length(address) = ADDRESS_LENGTH_WITHOUT_CHECKSUM);
+  Result := TInputValidator.CheckAddressWithoutChecksum(address);
 end;
 
 class function TChecksum.CalculateChecksum(address: String): String;

@@ -34,6 +34,7 @@ type
     function GetProtocol: String;
     function GetHost: String;
     function GetPort: Integer;
+    function GetTimeout: Integer;
     {
      * Returns information about this node.
      *
@@ -93,7 +94,7 @@ type
      * Using multiple of these input fields returns the intersection of the values.
      * Can error if the node found more transactions than the max transactions send amount
      *
-     * @param addresses Array of hashes from addresses
+     * @param addresses Array of hashes from addresses, must contain checksums
      * @param tags Array of tags
      * @param approvees Array of transaction hashes
      * @param bundles Array of bundle hashes
@@ -102,9 +103,9 @@ type
     }
     function FindTransactions(AAddresses: TStrings; ATags: TStrings; AApprovees: TStrings; ABundles: TStrings): TFindTransactionsResponse;
     {
-     * Find the transactions by addresses
+     * Find the transactions by addresses with checksum
      *
-     * @param addresses An array of addresses.
+     * @param addresses An array of addresses, must contain checksums
      * @return @link FindTransactionResponse
      * @throws ArgumentException
     }
@@ -200,7 +201,7 @@ type
      * </p>
      *
      * @param threshold The confirmation threshold, should be set to 100.
-     * @param addresses The list of addresses you want to get the confirmed balance from.
+     * @param addresses The list of addresses you want to get the confirmed balance from. Must contain the checksum.
      * @return @link GetBalancesResponse
      * @throws ArgumentException
     }
@@ -217,7 +218,7 @@ type
      *
      * @param threshold The confirmation threshold between 0 and 100(inclusive).
      *                  Should be set to 100 for getting balance by counting only confirmed transactions.
-     * @param addresses The addresses where we will find the balance for.
+     * @param addresses The addresses where we will find the balance for. Must contain the checksum.
      * @param tips The tips to find the balance through. Can be <t>null</t>
      * @return @link GetBalancesResponse
      * @throws ArgumentException The the request was considered wrong in any way by the node
@@ -226,7 +227,7 @@ type
     {
      * Check if a list of addresses was ever spent from, in the current epoch, or in previous epochs.
      *
-     * @param addresses List of addresses to check if they were ever spent from.
+     * @param addresses List of addresses to check if they were ever spent from. Must contain the checksum.
      * @return @link WereAddressesSpentFromResponse
      * @throws ArgumentException when an address is invalid
      * @throws ArgumentException
@@ -308,6 +309,7 @@ type
     property Protocol: String read GetProtocol;
     property Host: String read GetHost;
     property Port: Integer read GetPort;
+    property Timeout: Integer read GetTimeout;
   end;
 
   IIotaAPICoreBuilder = interface
@@ -315,11 +317,13 @@ type
     function Protocol(AProtocol: String): IIotaAPICoreBuilder;
     function Host(AHost: String): IIotaAPICoreBuilder;
     function Port(APort: Integer): IIotaAPICoreBuilder;
+    function Timeout(ATimeout: Integer): IIotaAPICoreBuilder;
     function LocalPow(ALocalPow: IIotaLocalPow): IIotaAPICoreBuilder;
     function Build: IIotaAPICore;
     function GetProtocol: String;
     function GetHost: String;
     function GetPort: Integer;
+    function GetTimeout: Integer;
     function GetLocalPow: IIotaLocalPow;
   end;
 

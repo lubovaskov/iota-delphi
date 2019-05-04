@@ -19,16 +19,16 @@ type
     function GetCommand: String; override;
     function BuildRequestBody(JsonBuilder: TJSONCollectionBuilder.TPairs): TJSONCollectionBuilder.TPairs; override;
   public
-    constructor Create(ARESTClient: TCustomRESTClient; AAddresses, ATags, AApprovees, ABundles: TStrings); reintroduce; virtual;
+    constructor Create(ARESTClient: TCustomRESTClient; ATimeout: Integer; AAddresses, ATags, AApprovees, ABundles: TStrings); reintroduce; virtual;
   end;
 
 implementation
 
 { TFindTransactionsRequest }
 
-constructor TFindTransactionsRequest.Create(ARESTClient: TCustomRESTClient; AAddresses, ATags, AApprovees, ABundles: TStrings);
+constructor TFindTransactionsRequest.Create(ARESTClient: TCustomRESTClient; ATimeout: Integer; AAddresses, ATags, AApprovees, ABundles: TStrings);
 begin
-  inherited Create(ARESTClient);
+  inherited Create(ARESTClient, ATimeout);
   FAddresses := AAddresses;
   FTags := ATags;
   FApprovees := AApprovees;

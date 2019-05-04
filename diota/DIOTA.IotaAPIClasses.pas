@@ -20,7 +20,7 @@ type
     function GetCommand: String; virtual; abstract;
     function BuildRequestBody(JsonBuilder: TJSONCollectionBuilder.TPairs): TJSONCollectionBuilder.TPairs; virtual;
   public
-    constructor Create(ARESTClient: TCustomRESTClient); virtual;
+    constructor Create(ARESTClient: TCustomRESTClient; ATimeout: Integer); virtual;
     destructor Destroy; override;
     function Execute<TResult: TIotaAPIResponse, constructor>: TResult;
   end;
@@ -34,13 +34,13 @@ uses
 
 { TIotaAPIRequest }
 
-constructor TIotaAPIRequest.Create(ARESTClient: TCustomRESTClient);
+constructor TIotaAPIRequest.Create(ARESTClient: TCustomRESTClient; ATimeout: Integer);
 begin
   FRequest := TRESTRequest.Create(nil);
   FRequest.SynchronizedEvents:= False;
-  FRequest.Timeout := 5000;
+  FRequest.Timeout := ATimeout;
   FRequest.Method := rmPOST;
-  FRequest.Params.AddHeader('X-IOTA-API-Version', '1.4.1');
+  FRequest.Params.AddHeader('X-IOTA-API-Version', '1.6.1');
   FRequest.Params.AddHeader('Content-Type', 'application/json');
   FRequest.Params.AddHeader('User-Agent', 'DIOTA-API wrapper');
   FRequest.Client := ARESTClient;

@@ -10,8 +10,8 @@ const
   //This String contains all possible characters of the tryte alphabet
   TRYTE_ALPHABET = '9ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
-  //The maximum seed length
-  SEED_LENGTH_MAX = Integer(81);
+  //The length of an IOTA seed
+  SEED_LENGTH = Integer(81);
 
   //The length of a hash in trits
   HASH_LENGTH_TRITS = Integer(243);

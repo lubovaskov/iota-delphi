@@ -35,7 +35,7 @@ type
      * @param seed      Tryte-encoded seed. It should be noted that this seed is not transferred.
      * @param security  Security level to be used for the private key / address. Can be 1, 2 or 3.
      * @param index     Key index to start search from. If the index is provided, the generation of the address is not deterministic.
-     * @param checksum  Adds 9-tryte address checksum.
+     * @param checksum  Adds 9-tryte address checksum. Checksums are required for all API calls.
      * @param total     Total number of addresses to generate.
      * @param returnAll If <code>true</code>, it returns all addresses which were deterministically generated (until findTransactions returns null).
      * @return @link GetNewAddressResponse
@@ -46,7 +46,7 @@ type
      * Checks all addresses until the first unspent address is found. Starts at index 0.
      * @param seed      Tryte-encoded seed. It should be noted that this seed is not transferred.
      * @param security  Security level to be used for the private key / address. Can be 1, 2 or 3.
-     * @param checksum  Adds 9-tryte address checksum.
+     * @param checksum  Adds 9-tryte address checksum. Checksums are required for all API calls.
      * @return @link GetNewAddressResponse
      * @throws ArgumentException When the seed is invalid
      * @throws ArgumentException When the security level is wrong.
@@ -56,7 +56,7 @@ type
      * Checks all addresses until the first unspent address is found.
      * @param seed      Tryte-encoded seed. It should be noted that this seed is not transferred.
      * @param security  Security level to be used for the private key / address. Can be 1, 2 or 3.
-     * @param checksum  Adds 9-tryte address checksum.
+     * @param checksum  Adds 9-tryte address checksum. Checksums are required for all API calls.
      * @param index     Key index to start search from.
      * @return @link GetNewAddressResponse
      * @throws ArgumentException When the seed is invalid
@@ -68,7 +68,7 @@ type
      * Starts at index 0, untill <code>amount</code> of unspent addresses are found.
      * @param seed      Tryte-encoded seed. It should be noted that this seed is not transferred.
      * @param security  Security level to be used for the private key / address. Can be 1, 2 or 3.
-     * @param checksum  Adds 9-tryte address checksum.
+     * @param checksum  Adds 9-tryte address checksum. Checksums are required for all API calls.
      * @param amount    Total number of addresses to generate.
      * @return @link GetNewAddressResponse
      * @throws ArgumentException When the seed is invalid
@@ -81,7 +81,7 @@ type
      * Stops when <code>amount</code> of unspent addresses are found,starting from <code>index</code>
      * @param seed      Tryte-encoded seed. It should be noted that this seed is not transferred.
      * @param security  Security level to be used for the private key / address. Can be 1, 2 or 3.
-     * @param checksum  Adds 9-tryte address checksum.
+     * @param checksum  Adds 9-tryte address checksum. Checksums are required for all API calls.
      * @param index     Key index to start search from.
      * @param amount    Total number of addresses to generate.
      * @return @link GetNewAddressResponse
@@ -95,7 +95,7 @@ type
      * Stops when <code>amount</code> of unspent addresses are found,starting from <code>index</code>
      * @param seed      Tryte-encoded seed. It should be noted that this seed is not transferred.
      * @param security  Security level to be used for the private key / address. Can be 1, 2 or 3.
-     * @param checksum  Adds 9-tryte address checksum.
+     * @param checksum  Adds 9-tryte address checksum. Checksums are required for all API calls.
      * @param index     Key index to start search from.
      * @param amount    Total number of addresses to generate.
      *                  If this is set to 0, we will generate until the first unspent address is found, and stop.
@@ -112,7 +112,7 @@ type
      * This does not mean that these addresses are safe to use (unspent)
      * @param seed      Tryte-encoded seed. It should be noted that this seed is not transferred.
      * @param security  Security level to be used for the private key / address. Can be 1, 2 or 3.
-     * @param checksum  Adds 9-tryte address checksum.
+     * @param checksum  Adds 9-tryte address checksum. Checksums are required for all API calls.
      * @param index     Key index to start search from. The generation of the address is not deterministic.
      * @param amount    Total number of addresses to generate.
      * @return @link GetNewAddressResponse
@@ -183,7 +183,7 @@ type
     {
      * Wrapper function: Finds transactions, gets trytes and turns it into @link Transaction objects.
      *
-     * @param addresses The addresses we should get the transactions for
+     * @param addresses The addresses we should get the transactions for, must contain checksums
      * @return @link Transaction objects.
      * @throws ArgumentException if addresses is not a valid array of hashes
      * @see #findTransactionsByAddresses(String...)
@@ -281,7 +281,7 @@ type
      * @param seed            Tryte-encoded seed. It should be noted that this seed is not transferred.
      * @param security        Security level to be used for the private key / address. Can be 1, 2 or 3.
      * @param index           Key index to start search from. If the index is provided, the generation of the address is not deterministic.
-     * @param checksum        Adds 9-tryte address checksum.
+     * @param checksum        Adds 9-tryte address checksum. Checksum is required for all API calls.
      * @param total           Total number of addresses to generate.
      * @param returnAll       If <code>true</code>, it returns all addresses which were deterministically generated (until findTransactions returns null).
      * @param start           Starting key index, must be at least 0.
@@ -297,7 +297,7 @@ type
                             AInclusionStates: Boolean; AThreshold: Int64): TGetAccountDataResponse;
     {
      * Check if a list of addresses was ever spent from, in the current epoch, or in previous epochs.
-     * If the address has a checksum, it is automatically removed
+     * Addresses must have a checksum.
      *
      * @param addresses the addresses to check
      * @return list of address boolean checks
@@ -306,7 +306,7 @@ type
     function CheckWereAddressSpentFrom(AAddresses: TStrings): TArray<Boolean>; overload;
     {
      * Check if an addresses was ever spent from, in the current epoch, or in previous epochs.
-     * If the address has a checksum, it is removed
+     * Addresses must have a checksum.
      *
      * @param address the address to check
      * @return <t>true</t> if it was spent, otherwise <t>false</t>
@@ -388,9 +388,9 @@ type
      * Does not contain signatures.
      *
      * @param securitySum      The sum of security levels used by all co-signers.
-     * @param inputAddress     Array of input addresses as well as the securitySum.
+     * @param inputAddress     Input address with checksum
      * @param remainderAddress Has to be generated by the cosigners before initiating the transfer, can be null if fully spent.
-     * @param transfers        List of @link Transfer we want to make using the unputAddresses
+     * @param transfers        List of @link Transfer we want to make using the inputAddress
      * @return All the @link Transaction objects in this newly created transfer
      * @throws ArgumentException when an address is invalid.
      * @throws ArgumentException when the security level is wrong.
@@ -404,10 +404,10 @@ type
      * Does not contain signatures.
      *
      * @param securitySum      The sum of security levels used by all co-signers.
-     * @param inputAddress     Array of input addresses as well as the securitySum.
+     * @param inputAddress     Input address with checksum
      * @param remainderAddress Has to be generated by the cosigners before initiating the transfer, can be null if fully spent.
-     * @param transfers        List of @link Transfer we want to make using the unputAddresses
-     * @param tips             The starting points for checking if the balances of the input addresses contain enough to make this transfer
+     * @param transfers        List of @link Transfer we want to make using the inputAddress
+     * @param tips             The starting points for checking if the balance of the input address contains enough to make this transfer
      *                         This can be <t>null</t>
      * @return All the @link Transaction objects in this newly created transfer
      * @throws ArgumentException when an address is invalid.
@@ -422,7 +422,7 @@ type
      * Does not contain signatures.
      *
      * @param securitySum      The sum of security levels used by all co-signers.
-     * @param inputAddress     Array of input addresses as well as the securitySum.
+     * @param inputAddress     Input address with checksum
      * @param remainderAddress Has to be generated by the cosigners before initiating the transfer, can be null if fully spent.
      * @param transfers        List of @link Transfer we want to make using the unputAddresses
      * @param testMode         If were running unit tests, set to true to bypass total value check
@@ -439,10 +439,10 @@ type
      * Does not contain signatures.
      *
      * @param securitySum      The sum of security levels used by all co-signers.
-     * @param inputAddress     Array of input addresses as well as the securitySum.
+     * @param inputAddress     Input address with checksum
      * @param remainderAddress Has to be generated by the cosigners before initiating the transfer, can be null if fully spent.
      * @param transfers        List of @link Transfer we want to make using the unputAddresses
-     * @param tips             The starting points for checking if the balances of the input addresses contain enough to make this transfer.
+     * @param tips             The starting points for checking if the balance of the input address contains enough to make this transfer
      *                         This can be <t>null</t>
      * @param testMode         If were running unit tests, set to true to bypass total value check
      * @return All the @link Transaction objects in this newly created transfer
@@ -460,7 +460,7 @@ type
      * </p>
      * <p>
      * In order to do this we will generate all addresses for this seed which are currently in use.
-     * Transactions for these addresses will be looked up, making this an expensive method call.
+     * Address checksums will be regenerated and these addresses will be looked up, making this an expensive method call.
      * </p>
      * If no error is thrown, the transaction trytes are using correct addresses.
      * This will not validate transaction fields.
@@ -542,6 +542,7 @@ type
     function Protocol(AProtocol: String): IIotaAPIBuilder;
     function Host(AHost: String): IIotaAPIBuilder;
     function Port(APort: Integer): IIotaAPIBuilder;
+    function Timeout(ATimeout: Integer): IIotaAPIBuilder;
     function LocalPow(ALocalPow: IIotaLocalPow): IIotaAPIBuilder;
     function WithCustomCurl(ACurl: ICurl): IIotaAPIBuilder;
     function Build: IIotaAPI;

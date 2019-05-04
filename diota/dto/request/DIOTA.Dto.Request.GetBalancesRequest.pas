@@ -17,16 +17,16 @@ type
     function GetCommand: String; override;
     function BuildRequestBody(JsonBuilder: TJSONCollectionBuilder.TPairs): TJSONCollectionBuilder.TPairs; override;
   public
-    constructor Create(ARESTClient: TCustomRESTClient; AThreshold: Integer; AAddresses, ATips: TArray<String>); reintroduce; virtual;
+    constructor Create(ARESTClient: TCustomRESTClient; ATimeout: Integer; AThreshold: Integer; AAddresses, ATips: TArray<String>); reintroduce; virtual;
   end;
 
 implementation
 
 { TGetBalancesRequest }
 
-constructor TGetBalancesRequest.Create(ARESTClient: TCustomRESTClient; AThreshold: Integer; AAddresses, ATips: TArray<String>);
+constructor TGetBalancesRequest.Create(ARESTClient: TCustomRESTClient; ATimeout: Integer; AThreshold: Integer; AAddresses, ATips: TArray<String>);
 begin
-  inherited Create(ARESTClient);
+  inherited Create(ARESTClient, ATimeout);
   FThreshold := AThreshold;
   FAddresses := AAddresses;
   FTips := ATips;

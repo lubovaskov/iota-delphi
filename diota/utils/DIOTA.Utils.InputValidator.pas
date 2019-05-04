@@ -16,14 +16,41 @@ type
   TInputValidator = class
   public
     {
+     * Determines whether the specified string is a isSeed.
+     *
+     * @param seed The seed to validate.
+     * @return <code>true</code> if the specified string is a seed; otherwise, <code>false</code>.
+    }
+    class function IsSeed(ASeed: String): Boolean;
+    {
      * Determines whether the specified string is an address.
+     * Address must contain a checksum to be valid
      *
      * @param address The address to validate.
      * @return <code>true</code> if the specified string is an address; otherwise, <code>false</code>.
     }
     class function IsAddress(address: String): Boolean;
     {
+     * According to the following issue:
+     * https://github.com/iotaledger/trinity-wallet/issues/866
+     *
+     * This is because Curl addresses always are with a 0 trit on the end
+     * So we validate if we actually send to a proper address, to prevent having to double spent
+     *
+     * @param address The trytes to check
+     * @return <code>true</code> if the specified trytes end with 0, otherwise <code>false</code>.
+    }
+    class function HasTrailingZeroTrit(trytes: String): Boolean;
+    {
+     * Determines whether the specified string is an address without checksum.
+     *
+     * @param address The address to validate.
+     * @return <code>true</code> if the specified string is an address; otherwise, <code>false</code>.
+    }
+    class function IsAddressWithoutChecksum(address: String): Boolean;
+    {
      * Determines whether the specified addresses are valid.
+     * Addresses must contain a checksum to be valid.
      *
      * @param addresses The address list to validate.
      * @return <code>true</code> if the specified addresses are valid; otherwise, <code>false</code>.
@@ -31,6 +58,7 @@ type
     class function IsAddressesCollectionValid(const addresses: TStrings): Boolean;
     {
      * Determines whether the specified addresses are valid.
+     * Addresses must contain a checksum to be valid.
      *
      * @param addresses The address array to validate.
      * @return <code>true</code> if the specified addresses are valid; otherwise, <code>false</code>.
@@ -38,12 +66,22 @@ type
     class function IsAddressesArrayValid(addresses: TArray<String>): Boolean;
     {
      * Checks whether the specified address is an address and throws and exception if the address is invalid.
+     * Addresses must contain a checksum to be valid.
      *
      * @param address The address to validate.
      * @return <code>true</code> if the specified string is an address; otherwise, <code>false</code>.
      * @throws ArgumentException when the specified input is not valid.
     }
     class function CheckAddress(address: String): Boolean;
+    {
+     * Checks whether the specified address is an address without checksum
+     * and throws and exception if the address is invalid.
+     *
+     * @param address The address to validate.
+     * @return <code>true</code> if the specified string is an address; otherwise, <code>false</code>.
+     * @throws ArgumentException when the specified input is not valid.
+    }
+    class function CheckAddressWithoutChecksum(address: String): Boolean;
     {
      * Determines whether the specified string contains only characters from the trytes alphabet
      * @param trytes The trytes to validate.
@@ -137,6 +175,13 @@ type
      * @param inputs The inputs to validate.
      * @return <code>true</code> if the specified inputs are valid; otherwise, <code>false</code>.
     }
+    class function AreValidInputsList(inputs: TList<IInput>): Boolean;
+    {
+     * Checks if the inputs are valid.
+     *
+     * @param inputs The inputs to validate.
+     * @return <code>true</code> if the specified inputs are valid; otherwise, <code>false</code>.
+    }
     class function AreValidInputs(inputs: TArray<IInput>): Boolean;
     {
      * Checks if the input is valid.
@@ -207,13 +252,32 @@ uses
   System.SysUtils,
   System.StrUtils,
   System.RegularExpressions,
-  DIOTA.Utils.Constants;
+  DIOTA.Utils.Constants,
+  DIOTA.Utils.Converter;
 
 { TInputValidator }
 
+class function TInputValidator.IsSeed(ASeed: String): Boolean;
+begin
+  Result := (Length(ASeed) <= SEED_LENGTH) and IsTrytes(ASeed);
+end;
+
 class function TInputValidator.IsAddress(address: String): Boolean;
 begin
-  Result := (Length(address) in [ADDRESS_LENGTH_WITHOUT_CHECKSUM, ADDRESS_LENGTH_WITH_CHECKSUM]) and IsTrytes(address);
+  Result := (Length(address) = ADDRESS_LENGTH_WITH_CHECKSUM) and IsTrytes(address);
+end;
+
+class function TInputValidator.HasTrailingZeroTrit(trytes: String): Boolean;
+var
+  ATrits: TArray<Integer>;
+begin
+  ATrits := TConverter.Trits(trytes);
+  Result := ATrits[High(ATrits)] = 0;
+end;
+
+class function TInputValidator.IsAddressWithoutChecksum(address: String): Boolean;
+begin
+  Result := IsTrytesOfExactLength(address, ADDRESS_LENGTH_WITHOUT_CHECKSUM);
 end;
 
 class function TInputValidator.IsAddressesCollectionValid(const addresses: TStrings): Boolean;
@@ -246,6 +310,13 @@ class function TInputValidator.CheckAddress(address: String): Boolean;
 begin
   Result := True;
   if not IsAddress(address) then
+    raise Exception.Create(INVALID_ADDRESSES_INPUT_ERROR);
+end;
+
+class function TInputValidator.CheckAddressWithoutChecksum(address: String): Boolean;
+begin
+  Result := True;
+  if not IsTrytesOfExactLength(address, ADDRESS_LENGTH_WITHOUT_CHECKSUM) then
     raise Exception.Create(INVALID_ADDRESSES_INPUT_ERROR);
 end;
 
@@ -397,6 +468,11 @@ begin
     end;
 end;
 
+class function TInputValidator.AreValidInputsList(inputs: TList<IInput>): Boolean;
+begin
+  Result := AreValidInputs(inputs.ToArray);
+end;
+
 class function TInputValidator.IsValidInput(input: IInput): Boolean;
 begin
   if not Assigned(input) then
@@ -413,7 +489,7 @@ end;
 
 class function TInputValidator.IsValidSeed(seed: String): Boolean;
 begin
-  if Length(seed) > SEED_LENGTH_MAX then
+  if Length(seed) > SEED_LENGTH then
     Result := False
   else
     Result := IsTrytes(seed);

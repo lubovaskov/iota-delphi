@@ -16,16 +16,16 @@ type
     function GetCommand: String; override;
     function BuildRequestBody(JsonBuilder: TJSONCollectionBuilder.TPairs): TJSONCollectionBuilder.TPairs; override;
   public
-    constructor Create(ARESTClient: TCustomRESTClient; ATails: TStrings); reintroduce; virtual;
+    constructor Create(ARESTClient: TCustomRESTClient; ATimeout: Integer; ATails: TStrings); reintroduce; virtual;
   end;
 
 implementation
 
 { TCheckConsistencyRequest }
 
-constructor TCheckConsistencyRequest.Create(ARESTClient: TCustomRESTClient; ATails: TStrings);
+constructor TCheckConsistencyRequest.Create(ARESTClient: TCustomRESTClient; ATimeout: Integer; ATails: TStrings);
 begin
-  inherited Create(ARESTClient);
+  inherited Create(ARESTClient, ATimeout);
   FTails := ATails;
 end;
 

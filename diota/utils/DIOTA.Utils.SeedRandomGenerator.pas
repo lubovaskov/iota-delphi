@@ -20,7 +20,7 @@ var
   i: Integer;
 begin
   Randomize;
-  for i := 1 to SEED_LENGTH_MAX do
+  for i := 1 to SEED_LENGTH do
     Result := Result + TRYTE_ALPHABET[Random(Length(TRYTE_ALPHABET)) {TAESPRNG.Main.Random32(Length(TRYTE_ALPHABET))} + 1];
 end;
 

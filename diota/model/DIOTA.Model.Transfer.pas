@@ -25,6 +25,17 @@ type
     FMessage: String;
     FTag: String;
   public
+    {
+     * Initializes a new instance of the Transfer class.
+     *
+     * @param timestamp
+     * @param address, must contain checksums
+     * @param hash
+     * @param persistence
+     * @param value
+     * @param message
+     * @param tag
+    }
     class function CreateTransfer(AAddress: String; AValue: Int64; AMessage: String; ATag: String): ITransfer;
 
     function SetAddress(AAddress: String): TTransferBuilder;

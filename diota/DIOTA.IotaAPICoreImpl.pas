@@ -32,10 +32,12 @@ type
     FProtocol: String;
     FHost: String;
     FPort: Integer;
+    FTimeout: Integer;
     FLocalPow: IIotaLocalPow;
     function GetProtocol: String;
     function GetHost: String;
     function GetPort: Integer;
+    function GetTimeout: Integer;
     {
      * <p>
      * Calculates the confirmed balance, as viewed by the specified <tt>tips</tt>.
@@ -88,16 +90,19 @@ type
     FProtocol: String;
     FHost: String;
     FPort: Integer;
+    FTimeout: Integer;
     FLocalPow: IIotaLocalPow;
   public
     function Protocol(AProtocol: String): IIotaAPICoreBuilder;
     function Host(AHost: String): IIotaAPICoreBuilder;
     function Port(APort: Integer): IIotaAPICoreBuilder;
+    function Timeout(ATimeout: Integer): IIotaAPICoreBuilder;
     function LocalPow(ALocalPow: IIotaLocalPow): IIotaAPICoreBuilder;
     function Build: IIotaAPICore;
     function GetProtocol: String;
     function GetHost: String;
     function GetPort: Integer;
+    function GetTimeout: Integer;
     function GetLocalPow: IIotaLocalPow;
   end;
 
@@ -148,6 +153,12 @@ begin
   Result := Self;
 end;
 
+function TIotaAPICoreBuilder.Timeout(ATimeout: Integer): IIotaAPICoreBuilder;
+begin
+  FTimeout := ATimeout;
+  Result := Self;
+end;
+
 function TIotaAPICoreBuilder.LocalPow(ALocalPow: IIotaLocalPow): IIotaAPICoreBuilder;
 begin
   FLocalPow := ALocalPow;
@@ -174,6 +185,11 @@ begin
   Result := FPort;
 end;
 
+function TIotaAPICoreBuilder.GetTimeout: Integer;
+begin
+  Result := FTimeout;
+end;
+
 function TIotaAPICoreBuilder.GetLocalPow: IIotaLocalPow;
 begin
   Result := FLocalPow;
@@ -186,6 +202,7 @@ begin
   FProtocol := ABuilder.GetProtocol;
   FHost := ABuilder.GetHost;
   FPort := ABuilder.GetPort;
+  FTimeout := ABuilder.GetTimeout;
   FLocalPow := ABuilder.GetLocalPow;
 
   FRESTClient := TRESTClient.Create(FProtocol + '://' + FHost + ':' + IntToStr(FPort));
@@ -214,11 +231,16 @@ begin
   Result := FPort;
 end;
 
+function TIotaAPICore.GetTimeout: Integer;
+begin
+  Result := FTimeout;
+end;
+
 function TIotaAPICore.GetNodeInfo: TGetNodeInfoResponse;
 var
   ARequest: TGetNodeInfoRequest;
 begin
-  ARequest:= TGetNodeInfoRequest.Create(FRESTClient);
+  ARequest:= TGetNodeInfoRequest.Create(FRESTClient, FTimeout);
   try
     Result := ARequest.Execute<TGetNodeInfoResponse>;
   finally
@@ -230,7 +252,7 @@ function TIotaAPICore.GetNeighbors: TGetNeighborsResponse;
 var
   ARequest: TGetNeighborsRequest;
 begin
-  ARequest:= TGetNeighborsRequest.Create(FRESTClient);
+  ARequest:= TGetNeighborsRequest.Create(FRESTClient, FTimeout);
   try
     Result := ARequest.Execute<TGetNeighborsResponse>;
   finally
@@ -242,7 +264,7 @@ function TIotaAPICore.AddNeighbors(AUris: TStrings): TAddNeighborsResponse;
 var
   ARequest: TAddNeighborsRequest;
 begin
-  ARequest:= TAddNeighborsRequest.Create(FRESTClient, AUris);
+  ARequest:= TAddNeighborsRequest.Create(FRESTClient, FTimeout, AUris);
   try
     Result := ARequest.Execute<TAddNeighborsResponse>;
   finally
@@ -254,7 +276,7 @@ function TIotaAPICore.RemoveNeighbors(AUris: TStrings): TRemoveNeighborsResponse
 var
   ARequest: TRemoveNeighborsRequest;
 begin
-  ARequest:= TRemoveNeighborsRequest.Create(FRESTClient, AUris);
+  ARequest:= TRemoveNeighborsRequest.Create(FRESTClient, FTimeout, AUris);
   try
     Result := ARequest.Execute<TRemoveNeighborsResponse>;
   finally
@@ -266,7 +288,7 @@ function TIotaAPICore.GetTips: TGetTipsResponse;
 var
   ARequest: TGetTipsRequest;
 begin
-  ARequest:= TGetTipsRequest.Create(FRESTClient);
+  ARequest:= TGetTipsRequest.Create(FRESTClient, FTimeout);
   try
     Result := ARequest.Execute<TGetTipsResponse>;
   finally
@@ -276,30 +298,32 @@ end;
 
 function TIotaAPICore.FindTransactions(AAddresses, ATags, AApprovees, ABundles: TStrings): TFindTransactionsResponse;
 var
+  i: Integer;
   ARequest: TFindTransactionsRequest;
+  AAddressesWithoutChecksum: TStringList;
 begin
-  ARequest:= TFindTransactionsRequest.Create(FRESTClient, AAddresses, ATags, AApprovees, ABundles);
+  if (not Assigned(AAddresses)) or (AAddresses.Count = 0) or (not TInputValidator.IsAddressesCollectionValid(AAddresses)) then
+    raise Exception.Create(INVALID_ADDRESSES_INPUT_ERROR);
+
+  AAddressesWithoutChecksum := TStringList.Create;
   try
-    Result := ARequest.Execute<TFindTransactionsResponse>;
+    for i := 0 to AAddresses.Count - 1 do
+      AAddressesWithoutChecksum.Add(TChecksum.RemoveChecksum(AAddresses[i]));
+
+    ARequest:= TFindTransactionsRequest.Create(FRESTClient, FTimeout, AAddressesWithoutChecksum, ATags, AApprovees, ABundles);
+    try
+      Result := ARequest.Execute<TFindTransactionsResponse>;
+    finally
+      ARequest.Free;
+    end;
   finally
-    ARequest.Free;
+    AAddressesWithoutChecksum.Free;
   end;
 end;
 
 function TIotaAPICore.FindTransactionsByAddresses(AAddresses: TStrings): TFindTransactionsResponse;
-var
-  AAddressesWithoutChecksum: TStringList;
-  AAddress: String;
 begin
-  AAddressesWithoutChecksum := TStringList.Create;
-  try
-    for AAddress in AAddresses do
-      AAddressesWithoutChecksum.Add(TChecksum.RemoveChecksum(AAddress));
-
-    Result := FindTransactions(AAddressesWithoutChecksum, nil, nil, nil);
-  finally
-    AAddressesWithoutChecksum.Free;
-  end;
+  Result := FindTransactions(AAddresses, nil, nil, nil);
 end;
 
 function TIotaAPICore.FindTransactionsByApprovees(AApprovees: TStrings): TFindTransactionsResponse;
@@ -327,7 +351,7 @@ begin
   if not TInputValidator.IsArrayOfHashes(ATips.ToStringArray) then
     raise Exception.Create(INVALID_HASHES_INPUT_ERROR);
 
-  ARequest:= TGetInclusionStatesRequest.Create(FRESTClient, ATransactions, ATips);
+  ARequest:= TGetInclusionStatesRequest.Create(FRESTClient, FTimeout, ATransactions, ATips);
   try
     Result := ARequest.Execute<TGetInclusionStatesResponse>;
   finally
@@ -342,7 +366,7 @@ begin
   if not TInputValidator.IsArrayOfHashes(AHashes.ToStringArray) then
     raise Exception.Create(INVALID_HASHES_INPUT_ERROR);
 
-  ARequest:= TGetTrytesRequest.Create(FRESTClient, AHashes);
+  ARequest:= TGetTrytesRequest.Create(FRESTClient, FTimeout, AHashes);
   try
     Result := ARequest.Execute<TGetTrytesResponse>;
   finally
@@ -354,7 +378,7 @@ function TIotaAPICore.GetTransactionsToApprove(ADepth: Integer; AReference: Stri
 var
   ARequest: TGetTransactionsToApproveRequest;
 begin
-  ARequest:= TGetTransactionsToApproveRequest.Create(FRESTClient, ADepth, AReference);
+  ARequest:= TGetTransactionsToApproveRequest.Create(FRESTClient, FTimeout, ADepth, AReference);
   try
     Result := ARequest.Execute<TGetTransactionsToApproveResponse>;
   finally
@@ -368,34 +392,37 @@ begin
 end;
 
 function TIotaAPICore.GetBalances(AConfirmationThreshold: Integer; AAddresses: TStrings): TGetBalancesResponse;
-begin
-  Result := GetBalances(AConfirmationThreshold, AAddresses, nil);
-end;
-
-function TIotaAPICore.GetBalances(AConfirmationThreshold: Integer; AAddresses, ATips: TStrings): TGetBalancesResponse;
 var
   AAddressesWithoutChecksum: TStringList;
-  AAddress: String;
+  i: Integer;
 begin
+  if (not Assigned(AAddresses)) or (AAddresses.Count = 0) or (not TInputValidator.IsAddressesCollectionValid(AAddresses)) then
+    raise Exception.Create(INVALID_ADDRESSES_INPUT_ERROR);
+
   AAddressesWithoutChecksum := TStringList.Create;
   try
-    for AAddress in AAddresses do
-      AAddressesWithoutChecksum.Add(TChecksum.RemoveChecksum(AAddress));
+    for i := 0 to AAddresses.Count - 1 do
+      AAddressesWithoutChecksum.Add(TChecksum.RemoveChecksum(AAddresses[i]));
 
-    if Assigned(ATips) then
-      Result := GetBalances(AConfirmationThreshold, AAddressesWithoutChecksum.ToStringArray, ATips.ToStringArray)
-    else
-      Result := GetBalances(AConfirmationThreshold, AAddressesWithoutChecksum.ToStringArray, nil);
+    Result := GetBalances(AConfirmationThreshold, AAddressesWithoutChecksum, nil);
   finally
     AAddressesWithoutChecksum.Free;
   end;
+end;
+
+function TIotaAPICore.GetBalances(AConfirmationThreshold: Integer; AAddresses, ATips: TStrings): TGetBalancesResponse;
+begin
+  if Assigned(ATips) then
+    Result := GetBalances(AConfirmationThreshold, AAddresses.ToStringArray, ATips.ToStringArray)
+  else
+    Result := GetBalances(AConfirmationThreshold, AAddresses.ToStringArray, nil);
 end;
 
 function TIotaAPICore.GetBalances(AConfirmationThreshold: Integer; AAddresses, ATips: TArray<String>): TGetBalancesResponse;
 var
   ARequest: TGetBalancesRequest;
 begin
-  ARequest:= TGetBalancesRequest.Create(FRESTClient, AConfirmationThreshold, AAddresses, ATips);
+  ARequest:= TGetBalancesRequest.Create(FRESTClient, FTimeout, AConfirmationThreshold, AAddresses, ATips);
   try
     Result := ARequest.Execute<TGetBalancesResponse>;
   finally
@@ -406,15 +433,25 @@ end;
 function TIotaAPICore.WereAddressesSpentFrom(AAddresses: TStrings): TWereAddressesSpentFromResponse;
 var
   ARequest: TWereAddressesSpentFromRequest;
+  AAddressesWithoutChecksum: TStringList;
+  i: Integer;
 begin
-  if not TInputValidator.IsAddressesArrayValid(AAddresses.ToStringArray) then
+  if (not Assigned(AAddresses)) or (AAddresses.Count = 0) or (not TInputValidator.IsAddressesCollectionValid(AAddresses)) then
     raise Exception.Create(INVALID_HASHES_INPUT_ERROR);
 
-  ARequest:= TWereAddressesSpentFromRequest.Create(FRESTClient, AAddresses);
+  AAddressesWithoutChecksum := TStringList.Create;
   try
-    Result := ARequest.Execute<TWereAddressesSpentFromResponse>;
+    for i := 0 to AAddresses.Count - 1 do
+      AAddressesWithoutChecksum.Add(TChecksum.RemoveChecksum(AAddresses[i]));
+
+    ARequest:= TWereAddressesSpentFromRequest.Create(FRESTClient, FTimeout, AAddresses);
+    try
+      Result := ARequest.Execute<TWereAddressesSpentFromResponse>;
+    finally
+      ARequest.Free;
+    end;
   finally
-    ARequest.Free;
+    AAddressesWithoutChecksum.Free;
   end;
 end;
 
@@ -425,7 +462,7 @@ begin
   if not TInputValidator.IsArrayOfHashes(ATails.ToStringArray) then
     raise Exception.Create(INVALID_HASHES_INPUT_ERROR);
 
-  ARequest:= TCheckConsistencyRequest.Create(FRESTClient, ATails);
+  ARequest:= TCheckConsistencyRequest.Create(FRESTClient, FTimeout, ATails);
   try
     Result := ARequest.Execute<TCheckConsistencyResponse>;
   finally
@@ -485,7 +522,7 @@ begin
     end
   else
     begin
-      ARequest:= TAttachToTangleRequest.Create(FRESTClient, ATrunkTransaction, ABranchTransaction, AMinWeightMagnitude, ATrytes);
+      ARequest:= TAttachToTangleRequest.Create(FRESTClient, FTimeout, ATrunkTransaction, ABranchTransaction, AMinWeightMagnitude, ATrytes);
       try
         Result := ARequest.Execute<TAttachToTangleResponse>;
       finally
@@ -498,7 +535,7 @@ function TIotaAPICore.InterruptAttachingToTangle: TInterruptAttachingToTangleRes
 var
   ARequest: TInterruptAttachingToTangleRequest;
 begin
-  ARequest:= TInterruptAttachingToTangleRequest.Create(FRESTClient);
+  ARequest:= TInterruptAttachingToTangleRequest.Create(FRESTClient, FTimeout);
   try
     Result := ARequest.Execute<TInterruptAttachingToTangleResponse>;
   finally
@@ -513,7 +550,7 @@ begin
   if not TInputValidator.IsArrayOfAttachedTrytes(ATrytes.ToStringArray) then
     raise Exception.Create(INVALID_ATTACHED_TRYTES_INPUT_ERROR);
 
-  ARequest:= TBroadcastTransactionsRequest.Create(FRESTClient, ATrytes);
+  ARequest:= TBroadcastTransactionsRequest.Create(FRESTClient, FTimeout, ATrytes);
   try
     Result := ARequest.Execute<TBroadcastTransactionsResponse>;
   finally
@@ -528,7 +565,7 @@ begin
   if not TInputValidator.IsArrayOfAttachedTrytes(ATrytes.ToStringArray) then
     raise Exception.Create(INVALID_ATTACHED_TRYTES_INPUT_ERROR);
 
-  ARequest:= TStoreTransactionsRequest.Create(FRESTClient, ATrytes);
+  ARequest:= TStoreTransactionsRequest.Create(FRESTClient, FTimeout, ATrytes);
   try
     Result := ARequest.Execute<TStoreTransactionsResponse>;
   finally

@@ -96,6 +96,12 @@ var
   ABundleFragment: TArray<Integer>;
   ASignedFragment: TArray<Integer>;
 begin
+  if not TInputValidator.IsValidSeed(seed) then
+    raise Exception.Create(INVALID_SEED_INPUT_ERROR);
+
+  if not TInputValidator.AreValidInputsList(inputs) then
+    raise Exception.Create(INVALID_INPUT_ERROR);
+
   bundle.Finalize(curl);
   bundle.AddTrytes(signatureFragments);
 
@@ -114,7 +120,7 @@ begin
           AKeyIndex := 0;
           AKeySecurity := 0;
           for AInput in inputs do
-            if AInput.Address = AThisAddress then
+            if TChecksum.RemoveChecksum(AInput.Address) = AThisAddress then
               begin
                 AKeyIndex := AInput.KeyIndex;
                 AKeySecurity := AInput.Security;

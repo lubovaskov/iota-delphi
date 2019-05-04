@@ -25,6 +25,14 @@ type
     FKeyIndex: Integer;
     FSecurity: Integer;
   public
+    {
+     * Initializes a new instance of the Input class.
+     *
+     * @param address with checksum
+     * @param balance
+     * @param keyIndex
+     * @param security
+    }
     class function CreateInput(AAddress: String; ABalance: Int64; AKeyIndex: Integer; ASecurity: Integer): IInput; static;
 
     function SetAddress(AAddress: String): TInputBuilder;
