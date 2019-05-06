@@ -156,7 +156,7 @@ The MIT license can be found [here](LICENSE).
 
 [license]: https://raw.githubusercontent.com/lubovaskov/iota-delphi/master/LICENSE
 [license-badge]: https://img.shields.io/badge/license-MIT-blue.svg
-[iota-iri]: https://github.com/iotaledger/iri/tree/v1.5.5
-[iota-iri-badge]: https://img.shields.io/badge/IOTA%20IRI%20compatibility-v1.5.5-blue.svg
+[iota-iri]: https://github.com/iotaledger/iri/tree/v1.6.1
+[iota-iri-badge]: https://img.shields.io/badge/IOTA%20IRI%20compatibility-v1.6.1-blue.svg
 [iota-api]: https://iota.readme.io/reference
-[iota-api-badge]: https://img.shields.io/badge/IOTA%20API%20coverage-15/15%20commands-green.svg
+[iota-api-badge]: https://img.shields.io/badge/IOTA%20API%20coverage-16/16%20commands-green.svg
