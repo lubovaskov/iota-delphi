@@ -1,3 +1,5 @@
+<img src="img/iota_black.png" width="80" height="80">
+
 # IOTA Delphi client library
 
 [![License][license-badge]][license]
