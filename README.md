@@ -1,4 +1,4 @@
-<img src="img/iota_black.png" width="80" height="80">
+<img src="img/iota_delphi.png" width="260" height="100">
 
 # IOTA Delphi client library
 
